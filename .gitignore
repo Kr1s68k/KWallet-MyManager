@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+# Schluessel und Sicherungen gehoeren nie ins Repository
+*.asc
+*.json.gpg
+*.json
