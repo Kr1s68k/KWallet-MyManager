@@ -2,7 +2,8 @@
 
 Schlanker Ersatz für den KWalletManager: Einträge der KDE-Wallet ansehen, kopieren,
 bearbeiten, umbenennen, anlegen und löschen. Gebaut mit Python und GTK 4, spricht
-`kwalletd6` direkt über D-Bus an. Qt-Bindungen braucht es nicht.
+die Wallet direkt über D-Bus an: `ksecretd` (KWallet ≥ 6.13), sonst `kwalletd6`.
+Qt-Bindungen braucht es nicht.
 
 Entstanden auf SteamOS (Steam Machine), läuft aber auf jedem Linux mit KDE Plasma 6.
 
@@ -18,7 +19,7 @@ Entstanden auf SteamOS (Steam Machine), läuft aber auf jedem Linux mit KDE Plas
 ## Voraussetzungen
 
 - Python 3 mit PyGObject und GTK 4
-- KDE Wallet (`kwalletd6`)
+- KDE Wallet (`ksecretd` oder `kwalletd6`)
 - GnuPG (`gpg`). Ein pinentry-Programm ist nicht nötig, die App fragt die Passphrase selbst ab
 
 ## Installation
@@ -66,7 +67,7 @@ Welcher Schlüssel gilt, steht in `~/.config/kwallet-mymanager/config.json`.
 | Datei | Inhalt |
 |---|---|
 | `app.py` | Oberfläche (GTK 4) |
-| `kwallet.py` | Zugriff auf `kwalletd6` über D-Bus, Umwandlung der Map-Einträge |
+| `kwallet.py` | Zugriff auf die Wallet über D-Bus (`ksecretd`, sonst `kwalletd6`), Umwandlung der Map-Einträge |
 | `backups.py` | Sichern, Aufräumen, Wiederherstellen |
 | `gpgkey.py` | GPG-Aufrufe, Einrichtung und Konfiguration des Sicherungsschlüssels |
 | `install.sh` | Starter im Anwendungsmenü anlegen oder entfernen |

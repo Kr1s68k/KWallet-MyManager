@@ -1,4 +1,11 @@
-"""Zugriff auf KWallet (kwalletd6) ueber D-Bus.
+"""Zugriff auf KWallet ueber D-Bus.
+
+Seit KWallet 6.13 ist ksecretd der eigentliche Dienst (auch Secret Service,
+org.freedesktop.secrets). Daneben kann ein eigenstaendiger kwalletd6 laufen,
+der dieselbe Datei mit einem eigenen, womoeglich veralteten Stand im
+Speicher haelt: Eintraege, die Programme per Secret Service anlegen, sieht
+er nicht, und ein Schreiben ueber ihn kann sie aus der Datei verdraengen.
+Darum zuerst ksecretd, kwalletd6 nur, wenn es ksecretd nicht gibt.
 
 Bewusst ohne Qt: die Qt-Bindungen fehlen auf SteamOS, Gio (GLib) ist da.
 Map-Eintraege speichert KWallet als QDataStream-serialisierte
@@ -8,8 +15,8 @@ import struct
 
 from gi.repository import Gio, GLib
 
-SERVICE = "org.kde.kwalletd6"
-PATH = "/modules/kwalletd6"
+BACKENDS = (("org.kde.ksecretd", "/ksecretd"),             # KWallet >= 6.13
+            ("org.kde.kwalletd6", "/modules/kwalletd6"))   # aeltere Systeme
 IFACE = "org.kde.KWallet"
 APPID = "KWallet-MyManager"
 
@@ -74,13 +81,28 @@ def encode_map(mapping):
 class Wallet:
     def __init__(self, name=None):
         self.bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+        self.service, self.path = self._pick_backend()
         self.name = name or self._call("networkWallet", "()", (), "(s)")
         self.handle = -1
+
+    def _pick_backend(self):
+        """Erster Dienst, der laeuft oder per D-Bus startbar ist."""
+        def ask(method, name):
+            reply = self.bus.call_sync(
+                "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus",
+                method, GLib.Variant("(s)", (name,)) if name else None,
+                None, Gio.DBusCallFlags.NONE, 5_000, None)
+            return reply.unpack()[0]
+        activatable = set(ask("ListActivatableNames", None))
+        for service, path in BACKENDS:
+            if ask("NameHasOwner", service) or service in activatable:
+                return service, path
+        raise WalletError("Weder ksecretd noch kwalletd6 ist erreichbar.")
 
     def _call(self, method, sig, args, out, timeout=10_000):
         try:
             reply = self.bus.call_sync(
-                SERVICE, PATH, IFACE, method, GLib.Variant(sig, args),
+                self.service, self.path, IFACE, method, GLib.Variant(sig, args),
                 GLib.VariantType(out), Gio.DBusCallFlags.NONE, timeout, None)
         except GLib.Error as err:
             raise WalletError(f"{method}: {err.message}") from err
